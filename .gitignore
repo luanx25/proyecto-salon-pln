@@ -1,0 +1,39 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos de entorno y secretos
+.env
+.env.local
+*.env
+secrets.json
+
+# Archivos temporales
+t
+*.tmp
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/

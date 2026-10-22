@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salón de Belleza - Landing PLN MVP</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f7f7f7;
+        }
+
+        h1, h2 {
+            color: #222;
+        }
+
+        .container {
+            max-width: 1150px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea, input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            margin-top: 5px;
+        }
+
+        textarea {
+            height: 90px;
+        }
+
+        button {
+            margin-top: 12px;
+            padding: 10px 16px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            background: #6c4ab6;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #59379a;
+        }
+
+        pre {
+            background: #111;
+            color: #00ff9c;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        th {
+            background: #6c4ab6;
+            color: white;
+        }
+
+        .badge-ok {
+            color: green;
+            font-weight: bold;
+        }
+
+        .badge-error {
+            color: red;
+            font-weight: bold;
+        }
+
+        .field {
+            margin-top: 12px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Salón de Belleza - Landing + PLN</h1>
+
+        <p>
+            Flujo de prueba:
+            <strong>mensaje → PLN extrae → valida contacto → disponibilidad → guarda → muestra</strong>
+        </p>
+
+        <h2>Registrar solicitud de cita</h2>
+
+        <form id="formMensaje">
+            <div class="field">
+                <label for="mensaje">Mensaje del cliente</label>
+                <textarea
+                    id="mensaje"
+                    placeholder="Ejemplo: Quiero reservar manicura mañana a las 3pm"
+                    required
+                ></textarea>
+            </div>
+
+            <div class="field">
+                <label for="cliente_email">Correo electrónico</label>
+                <input
+                    type="email"
+                    id="cliente_email"
+                    placeholder="cliente@correo.com"
+                    required
+                >
+            </div>
+
+            <div class="field">
+                <label for="cliente_telefono">Número de teléfono</label>
+                <input
+                    type="tel"
+                    id="cliente_telefono"
+                    placeholder="7221234567"
+                    required
+                >
+            </div>
+
+            <br>
+
+            <button type="submit">Procesar solicitud</button>
+        </form>
+
+        <h2>Resultado del procesamiento</h2>
+
+        <div id="resultado">
+            Aún no se ha procesado ningún mensaje.
+        </div>
+
+        <h2>Citas guardadas</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Servicio</th>
+                    <th>Atenderá</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Fecha y hora</th>
+                    <th>Estado</th>
+                    <th>Origen</th>
+                    <th>Mensaje original</th>
+                </tr>
+            </thead>
+
+            <tbody id="tablaCitas">
+                <tr>
+                    <td colspan="9">Cargando citas...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function cargarCitas() {
+            try {
+                const respuesta = await fetch("/api/citas");
+                const citas = await respuesta.json();
+
+                const tabla = document.getElementById("tablaCitas");
+
+                if (!citas.length) {
+                    tabla.innerHTML = `
+                        <tr>
+                            <td colspan="9">No hay citas guardadas todavía.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tabla.innerHTML = citas.map(cita => `
+                    <tr>
+                        <td>${cita.id}</td>
+                        <td>${cita.servicio}</td>
+                        <td>${cita.atendido_por}</td>
+                        <td>${cita.cliente_email}</td>
+                        <td>${cita.cliente_telefono}</td>
+                        <td>${cita.fecha_hora}</td>
+                        <td>${cita.estado}</td>
+                        <td>${cita.origen}</td>
+                        <td>${cita.mensaje_original}</td>
+                    </tr>
+                `).join("");
+
+            } catch (error) {
+                document.getElementById("tablaCitas").innerHTML = `
+                    <tr>
+                        <td colspan="9">Error al cargar citas.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        document.getElementById("formMensaje").addEventListener("submit", async function(evento) {
+            evento.preventDefault();
+
+            const mensaje = document.getElementById("mensaje").value;
+            const cliente_email = document.getElementById("cliente_email").value;
+            const cliente_telefono = document.getElementById("cliente_telefono").value;
+
+            const resultado = document.getElementById("resultado");
+
+            resultado.innerHTML = "Procesando solicitud...";
+
+            try {
+                const respuesta = await fetch("/api/landing/message", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        mensaje: mensaje,
+                        cliente_email: cliente_email,
+                        cliente_telefono: cliente_telefono
+                    })
+                });
+
+                const datos = await respuesta.json();
+
+                resultado.innerHTML = `
+                    <p class="${datos.ok ? "badge-ok" : "badge-error"}">
+                        ${datos.ok ? "✅" : "❌"} ${datos.mensaje}
+                    </p>
+
+                    <pre>${JSON.stringify(datos, null, 2)}</pre>
+                `;
+
+                cargarCitas();
+
+            } catch (error) {
+                resultado.innerHTML = `
+                    <p class="badge-error">❌ Error al comunicarse con el servidor.</p>
+                    <pre>${error}</pre>
+                `;
+            }
+        });
+
+        cargarCitas();
+    </script>
+</body>
+</html>
