@@ -6,8 +6,7 @@ from models import Servicio, Cita, Empleado
 from schemas import MensajeEntrada
 from nlp import parse_mensaje
 from services import (
-    validar_contacto, obtener_empleado_por_nombre, obtener_empleado_default,
-    buscar_servicio, validar_disponibilidad, crear_cita
+    validar_contacto,buscar_servicio,  asignar_empleado_disponible, crear_cita
 )
 
 router = APIRouter(prefix="/api")
@@ -108,38 +107,24 @@ def procesar_mensaje_landing(payload: MensajeEntrada, db: Session = Depends(get_
             "analisis": analisis_serializable,
             "mensaje": f"No se encontró el servicio: {analisis['servicio']}."
         }
-
-    # Paso 5: asignar empleado responsable
-    flujo.append("5. Sistema asigna a la persona que atenderá la cita.")
-
-    empleado = obtener_empleado_por_nombre(db, "Michell")
-
-    if not empleado:
-        empleado = obtener_empleado_default(db)
-
-    if not empleado:
-        return {
-            "ok": False,
-            "flujo": flujo,
-            "analisis": analisis_serializable,
-            "mensaje": "No hay empleados activos disponibles."
-        }
-
-    # Paso 6: validar disponibilidad
-    flujo.append("6. Sistema valida disponibilidad.")
+       # Paso 5: asignar empleado disponible
+    flujo.append("5. Sistema busca a una persona disponible para el servicio.")
 
     fecha_hora = datetime.combine(analisis["fecha"], analisis["hora"])
-    disponible, mensaje_disponibilidad = validar_disponibilidad(db, fecha_hora, servicio, empleado)
+    empleado, mensaje_disponibilidad = asignar_empleado_disponible(db, servicio, fecha_hora)
 
-    if not disponible:
+    if not empleado:
         return {
             "ok": False,
             "flujo": flujo,
             "analisis": analisis_serializable,
             "mensaje": mensaje_disponibilidad,
             "fecha_hora_solicitada": fecha_hora.isoformat(),
-            "atendido_por": empleado.nombre
         }
+
+    # Paso 6: disponibilidad confirmada
+    flujo.append("6. Sistema confirma disponibilidad.")
+
 
     # Paso 7: guardar cita
     flujo.append("7. Sistema guarda la cita en la tabla 'citas'.")

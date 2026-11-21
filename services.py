@@ -98,7 +98,6 @@ def hay_traslape(db: Session, empleado: Empleado, inicio: datetime, fin: datetim
 
     return False
 
-
 def validar_disponibilidad(db: Session, fecha_hora: datetime, servicio: Servicio, empleado: Empleado):
     ok, mensaje = validar_horario_general(fecha_hora, servicio)
     if not ok:
@@ -106,11 +105,44 @@ def validar_disponibilidad(db: Session, fecha_hora: datetime, servicio: Servicio
 
     fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
 
+    if not empleado_trabaja_en(empleado, fecha_hora, fin):
+        return False, f"{empleado.nombre} no trabaja en ese horario."
+
     if hay_traslape(db, empleado, fecha_hora, fin):
         return False, "El horario ya está ocupado. Elige otro horario."
 
     return True, "Horario disponible."
 
+
+def empleado_trabaja_en(empleado: Empleado, inicio: datetime, fin: datetime):
+    """True si [inicio, fin] cae dentro de algún bloque laboral del empleado ese día."""
+    for h in empleado.horarios:
+        if h.dia_semana == inicio.weekday():
+            if h.hora_inicio <= inicio.time() and fin.time() <= h.hora_fin:
+                return True
+    return False
+
+
+def asignar_empleado_disponible(db: Session, servicio: Servicio, fecha_hora: datetime):
+    """Devuelve (empleado, mensaje). Si nadie puede, empleado es None."""
+    ok, mensaje = validar_horario_general(fecha_hora, servicio)
+    if not ok:
+        return None, mensaje
+
+    fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
+
+    candidatos = [e for e in servicio.empleados if e.activo]
+    if not candidatos:
+        return None, f"No hay personal activo que realice '{servicio.nombre}'."
+
+    for empleado in candidatos:
+        if not empleado_trabaja_en(empleado, fecha_hora, fin):
+            continue
+        if hay_traslape(db, empleado, fecha_hora, fin):
+            continue
+        return empleado, "Horario disponible."
+
+    return None, "No hay personal disponible en ese horario. Elige otro horario."
 
 def crear_cita(
     db: Session,
