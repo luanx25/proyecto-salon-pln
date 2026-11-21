@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from models import Servicio, Cita, Empleado
 
@@ -57,26 +57,56 @@ def buscar_servicio(db: Session, nombre_servicio: str):
         .first()
     )
 
-
-def validar_disponibilidad(db: Session, fecha_hora: datetime):
-    ahora = datetime.now()
-
-    if fecha_hora < ahora:
+def validar_horario_general(fecha_hora: datetime, servicio: Servicio):
+    """Valida fecha futura y que el servicio completo quepa en el horario del salón."""
+    if fecha_hora < datetime.now():
         return False, "La fecha y hora seleccionadas ya pasaron."
 
-    if fecha_hora.hour < HORA_APERTURA or fecha_hora.hour >= HORA_CIERRE:
-        return False, f"El horario de atención es de {HORA_APERTURA}:00 a {HORA_CIERRE}:00."
+    fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
+    apertura = fecha_hora.replace(hour=HORA_APERTURA, minute=0, second=0, microsecond=0)
+    cierre = fecha_hora.replace(hour=HORA_CIERRE, minute=0, second=0, microsecond=0)
 
-    cita_existente = (
+    if fecha_hora < apertura or fin > cierre:
+        return False, (
+            f"El horario de atención es de {HORA_APERTURA}:00 a {HORA_CIERRE}:00 "
+            f"y '{servicio.nombre}' dura {servicio.duracion_min} min."
+        )
+
+    return True, "Horario válido."
+
+
+def hay_traslape(db: Session, empleado: Empleado, inicio: datetime, fin: datetime):
+    """True si el empleado ya tiene una cita que choca con [inicio, fin)."""
+    inicio_dia = inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    citas_dia = (
         db.query(Cita)
         .filter(
-            Cita.fecha_hora == fecha_hora,
-            Cita.estado != "cancelada"
+            Cita.empleado_id == empleado.id,
+            Cita.estado != "cancelada",
+            Cita.fecha_hora >= inicio_dia,
+            Cita.fecha_hora < inicio_dia + timedelta(days=1),
         )
-        .first()
+        .all()
     )
 
-    if cita_existente:
+    for c in citas_dia:
+        c_inicio = c.fecha_hora
+        c_fin = c_inicio + timedelta(minutes=c.servicio.duracion_min)
+        if inicio < c_fin and fin > c_inicio:
+            return True
+
+    return False
+
+
+def validar_disponibilidad(db: Session, fecha_hora: datetime, servicio: Servicio, empleado: Empleado):
+    ok, mensaje = validar_horario_general(fecha_hora, servicio)
+    if not ok:
+        return False, mensaje
+
+    fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
+
+    if hay_traslape(db, empleado, fecha_hora, fin):
         return False, "El horario ya está ocupado. Elige otro horario."
 
     return True, "Horario disponible."

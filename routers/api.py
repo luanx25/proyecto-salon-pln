@@ -129,7 +129,7 @@ def procesar_mensaje_landing(payload: MensajeEntrada, db: Session = Depends(get_
     flujo.append("6. Sistema valida disponibilidad.")
 
     fecha_hora = datetime.combine(analisis["fecha"], analisis["hora"])
-    disponible, mensaje_disponibilidad = validar_disponibilidad(db, fecha_hora)
+    disponible, mensaje_disponibilidad = validar_disponibilidad(db, fecha_hora, servicio, empleado)
 
     if not disponible:
         return {
