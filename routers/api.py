@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, date
 from database import get_db
 from models import Servicio, Cita, Empleado
 from schemas import MensajeEntrada
 from nlp import parse_mensaje
 from services import (
-    validar_contacto,buscar_servicio,  asignar_empleado_disponible, crear_cita
+    validar_contacto,buscar_servicio,  asignar_empleado_disponible, crear_cita,listar_horarios_disponibles
 )
 
 router = APIRouter(prefix="/api")
@@ -38,6 +38,22 @@ def listar_empleados(db: Session = Depends(get_db)):
         }
         for e in empleados
     ]
+
+@router.get("/disponibilidad")
+def disponibilidad(fecha: date, servicio_id: int, db: Session = Depends(get_db)):
+    servicio = (
+        db.query(Servicio)
+        .filter(Servicio.id == servicio_id, Servicio.activo == True)
+        .first()
+    )
+    if not servicio:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado.")
+
+    return {
+        "fecha": fecha.isoformat(),
+        "servicio": servicio.nombre,
+        "horarios": listar_horarios_disponibles(db, servicio, fecha),
+    }
 
 
 

@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 from sqlalchemy.orm import Session
 from models import Servicio, Cita, Empleado
 
@@ -171,3 +171,17 @@ def crear_cita(
     db.refresh(cita)
 
     return cita
+
+def listar_horarios_disponibles(db: Session, servicio: Servicio, dia: date, paso_min: int = 30):
+    """Lista las horas de inicio ('HH:MM') en las que se puede agendar el servicio ese día."""
+    horarios = []
+    actual = datetime.combine(dia, time(HORA_APERTURA, 0))
+    cierre = datetime.combine(dia, time(HORA_CIERRE, 0))
+
+    while actual + timedelta(minutes=servicio.duracion_min) <= cierre:
+        empleado, _ = asignar_empleado_disponible(db, servicio, actual)
+        if empleado:
+            horarios.append(actual.strftime("%H:%M"))
+        actual += timedelta(minutes=paso_min)
+
+    return horarios
