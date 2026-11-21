@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Time
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -12,6 +12,11 @@ class Empleado(Base):
     activo = Column(Boolean, default=True)
 
     citas = relationship("Cita", back_populates="empleado")
+    horarios = relationship(
+        "HorarioEmpleado",
+        back_populates="empleado",
+        cascade="all, delete-orphan",
+    )
 
 
 class Servicio(Base):
@@ -46,3 +51,15 @@ class Cita(Base):
 
     servicio = relationship("Servicio", back_populates="citas")
     empleado = relationship("Empleado", back_populates="citas")
+
+class HorarioEmpleado(Base):
+    """Bloque de trabajo de un empleado en un día de la semana."""
+    __tablename__ = "horarios_empleado"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empleado_id = Column(Integer, ForeignKey("empleados.id"), nullable=False)
+    dia_semana = Column(Integer, nullable=False)  # 0=lunes ... 6=domingo
+    hora_inicio = Column(Time, nullable=False)
+    hora_fin = Column(Time, nullable=False)
+
+    empleado = relationship("Empleado", back_populates="horarios")

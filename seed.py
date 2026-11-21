@@ -1,5 +1,7 @@
 from database import SessionLocal
-from models import Servicio, Empleado
+from models import Servicio, Empleado, HorarioEmpleado
+from datetime import time
+
 
 
 def seed_datos():
@@ -19,3 +21,14 @@ def seed_datos():
                 db.add(Servicio(**s))
 
         db.commit()
+        seed_horarios(db)        
+
+def seed_horarios(db):
+    michell = db.query(Empleado).filter(Empleado.nombre == "Michell").first()
+    if michell and not michell.horarios:
+        for dia in range(0, 6):  # lunes a sábado
+            michell.horarios.append(
+                HorarioEmpleado(dia_semana=dia, hora_inicio=time(10, 0), hora_fin=time(19, 0))
+            )
+        db.commit()
+        
