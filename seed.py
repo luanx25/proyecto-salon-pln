@@ -21,7 +21,8 @@ def seed_datos():
                 db.add(Servicio(**s))
 
         db.commit()
-        seed_horarios(db)        
+        seed_horarios(db)
+        seed_relacion_servicios(db)        
 
 def seed_horarios(db):
     michell = db.query(Empleado).filter(Empleado.nombre == "Michell").first()
@@ -31,4 +32,9 @@ def seed_horarios(db):
                 HorarioEmpleado(dia_semana=dia, hora_inicio=time(10, 0), hora_fin=time(19, 0))
             )
         db.commit()
-        
+
+def seed_relacion_servicios(db):
+    michell = db.query(Empleado).filter(Empleado.nombre == "Michell").first()
+    if michell and not michell.servicios:
+        michell.servicios = db.query(Servicio).all()
+        db.commit()        

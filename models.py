@@ -1,8 +1,14 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Time
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Time, Table
 from sqlalchemy.orm import relationship
 from database import Base
 
+empleado_servicio = Table(
+    "empleado_servicio",
+    Base.metadata,
+    Column("empleado_id", ForeignKey("empleados.id"), primary_key=True),
+    Column("servicio_id", ForeignKey("servicios.id"), primary_key=True),
+)
 
 class Empleado(Base):
     __tablename__ = "empleados"
@@ -10,13 +16,14 @@ class Empleado(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, unique=True, index=True, nullable=False)
     activo = Column(Boolean, default=True)
-
+    servicios = relationship("Servicio", secondary=empleado_servicio, back_populates="empleados")
     citas = relationship("Cita", back_populates="empleado")
     horarios = relationship(
         "HorarioEmpleado",
         back_populates="empleado",
         cascade="all, delete-orphan",
     )
+
 
 
 class Servicio(Base):
@@ -27,7 +34,7 @@ class Servicio(Base):
     duracion_min = Column(Integer, default=30)
     precio = Column(Float, default=0.0)
     activo = Column(Boolean, default=True)
-
+    empleados = relationship("Empleado", secondary=empleado_servicio, back_populates="servicios")
     citas = relationship("Cita", back_populates="servicio")
 
 
