@@ -3,8 +3,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from config import SECRET_KEY
 from database import Base, engine
-from routers import public, api, auth
+from routers import public, api, auth,admin
 from seed import seed_datos
+from fastapi.responses import RedirectResponse
+from dependencies import RedirigirALogin
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,5 +26,13 @@ app.add_middleware(
 app.include_router(public.router)
 app.include_router(api.router)
 app.include_router(auth.router)
+app.include_router(admin.router)
+
+@app.exception_handler(RedirigirALogin)
+async def redirigir_a_login(request, exc):
+    return RedirectResponse("/admin/login", status_code=303)
+
+
+
 
 seed_datos()
