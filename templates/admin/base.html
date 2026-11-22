@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Panel{% endblock %} · Administración</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="brand">Salón · Admin</div>
+    <nav>
+        <a href="/admin" class="{{ 'active' if seccion == 'dashboard' }}">Resumen</a>
+    </nav>
+    <div class="user">
+        <div>{{ admin.nombre }}</div>
+        <form method="post" action="/admin/logout">
+            <button type="submit" class="link">Cerrar sesión</button>
+        </form>
+    </div>
+</aside>
+<main>
+    {% for f in get_flashes(request) %}
+    <div class="flash {{ f.tipo }}">{{ f.msg }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

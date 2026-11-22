@@ -7,6 +7,7 @@ from routers import public, api, auth,admin
 from seed import seed_datos
 from fastapi.responses import RedirectResponse
 from dependencies import RedirigirALogin
+from fastapi.staticfiles import StaticFiles
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,6 +23,8 @@ app.add_middleware(
     same_site="lax",
     https_only=False,      # cámbialo a True al desplegar con HTTPS
 )
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(public.router)
 app.include_router(api.router)

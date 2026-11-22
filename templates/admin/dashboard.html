@@ -1,15 +1,28 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Panel de administración</title>
-</head>
-<body style="font-family: system-ui, sans-serif; padding: 2rem;">
+{% extends "admin/base.html" %}
+{% block title %}Resumen{% endblock %}
+{% block content %}
 <h1>Hola, {{ admin.nombre }}</h1>
-<p>Panel de administración en construcción.</p>
-<form method="post" action="/admin/logout">
-    <button type="submit">Cerrar sesión</button>
-</form>
-</body>
-</html>
+
+<div class="cards">
+    <div class="stat"><span>{{ citas_hoy }}</span>Citas hoy</div>
+    <div class="stat"><span>{{ citas_semana }}</span>Próximos 7 días</div>
+    <div class="stat"><span>{{ servicios_activos }}</span>Servicios activos</div>
+    <div class="stat"><span>{{ empleados_activos }}</span>Empleados activos</div>
+</div>
+
+<h2>Próximas citas</h2>
+<table>
+    <tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Atiende</th><th>Estado</th></tr>
+    {% for c in proximas %}
+    <tr>
+        <td>{{ c.fecha_hora|fecha }}</td>
+        <td>{{ c.cliente_email }}<br><small>{{ c.cliente_telefono }}</small></td>
+        <td>{{ c.servicio.nombre }}</td>
+        <td>{{ c.empleado.nombre }}</td>
+        <td><span class="badge {{ c.estado }}">{{ ESTADOS[c.estado] }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">No hay citas próximas.</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}
