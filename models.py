@@ -70,3 +70,14 @@ class HorarioEmpleado(Base):
     hora_fin = Column(Time, nullable=False)
 
     empleado = relationship("Empleado", back_populates="horarios")
+
+class Usuario(Base):
+    """Usuarios del panel de administración."""
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    nombre = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False)
+    activo = Column(Boolean, default=True)
+    creado_en = Column(DateTime, default=datetime.now)  
