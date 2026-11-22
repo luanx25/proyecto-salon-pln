@@ -3,3 +3,7 @@ uvicorn[standard]
 sqlalchemy
 jinja2
 pytest
+bcrypt
+itsdangerous
+python-multipart
+python-dotenv

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acceso administrador</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f1ee; display: flex;
+           min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
+    .card { background: #fff; padding: 2rem; border-radius: 12px; width: 100%;
+            max-width: 360px; box-shadow: 0 4px 20px rgba(0,0,0,.08); }
+    h1 { margin-top: 0; font-size: 1.4rem; }
+    label { display: block; margin-top: 1rem; font-size: .9rem; }
+    input { width: 100%; padding: .6rem; margin-top: .3rem; border: 1px solid #ccc;
+            border-radius: 6px; box-sizing: border-box; }
+    button { width: 100%; margin-top: 1.5rem; padding: .7rem; border: 0; border-radius: 6px;
+             background: #b5446e; color: #fff; font-size: 1rem; cursor: pointer; }
+    .error { background: #fde8e8; color: #9b1c1c; padding: .6rem; border-radius: 6px;
+             margin-bottom: 1rem; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <form class="card" method="post" action="/admin/login">
+    <h1>Panel de administración</h1>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <label>Correo
+      <input type="email" name="email" required autofocus>
+    </label>
+    <label>Contraseña
+      <input type="password" name="password" required>
+    </label>
+    <button type="submit">Entrar</button>
+  </form>
+</body>
+</html>

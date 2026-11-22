@@ -1,6 +1,9 @@
 from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
+
+from config import SECRET_KEY
 from database import Base, engine
-from routers import public, api
+from routers import public, api, auth
 from seed import seed_datos
 
 Base.metadata.create_all(bind=engine)
@@ -10,7 +13,16 @@ app = FastAPI(
     description="Prueba funcional: mensaje → PLN → validación de contacto → disponibilidad → guardado → interfaz"
 )
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    max_age=60 * 60 * 8,   # la sesión dura 8 horas
+    same_site="lax",
+    https_only=False,      # cámbialo a True al desplegar con HTTPS
+)
+
 app.include_router(public.router)
 app.include_router(api.router)
+app.include_router(auth.router)
 
 seed_datos()
