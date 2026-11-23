@@ -80,4 +80,28 @@ class Usuario(Base):
     nombre = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)
     activo = Column(Boolean, default=True)
-    creado_en = Column(DateTime, default=datetime.now)  
+    creado_en = Column(DateTime, default=datetime.now)
+
+class SeccionPagina(Base):
+    """Bloque de la landing. 'tipo' decide qué plantilla lo dibuja."""
+    __tablename__ = "secciones_pagina"
+
+    id = Column(Integer, primary_key=True, index=True)
+    clave = Column(String, unique=True, nullable=False)   # también es el ancla (#clave)
+    tipo = Column(String, nullable=False)  # hero | texto | servicios | equipo | reserva | contacto
+    titulo = Column(String, nullable=False, default="")
+    subtitulo = Column(String, nullable=False, default="")
+    contenido = Column(Text, nullable=False, default="")
+    imagen = Column(String, nullable=True)
+    boton_texto = Column(String, nullable=False, default="")
+    boton_enlace = Column(String, nullable=False, default="")
+    orden = Column(Integer, nullable=False, default=0, index=True)
+    visible = Column(Boolean, nullable=False, default=True)
+
+
+class ConfiguracionSitio(Base):
+    """Datos generales del salón en formato clave-valor."""
+    __tablename__ = "configuracion_sitio"
+
+    clave = Column(String, primary_key=True)
+    valor = Column(Text, nullable=False, default="")
