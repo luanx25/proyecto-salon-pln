@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% block title %}Empleados{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1>Empleados</h1>
+    <a class="btn" href="/admin/empleados/nuevo">+ Nuevo empleado</a>
+</div>
+<table>
+    <tr><th>Nombre</th><th>Servicios</th><th>Días laborales</th><th>Estado</th><th></th></tr>
+    {% for e in empleados %}
+    <tr>
+        <td>{{ e.nombre }}</td>
+        <td>{{ e.servicios|map(attribute='nombre')|join(', ') or '—' }}</td>
+        <td>{{ e.horarios|length }}</td>
+        <td><span class="badge {{ '' if e.activo else 'inactivo' }}">{{ 'Activo' if e.activo else 'Inactivo' }}</span></td>
+        <td>
+            <a class="btn sec" href="/admin/empleados/{{ e.id }}/editar">Editar</a>
+            <form class="inline" method="post" action="/admin/empleados/{{ e.id }}/activar">
+                <button class="btn sec" type="submit">{{ 'Desactivar' if e.activo else 'Activar' }}</button>
+            </form>
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Aún no hay empleados.</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}

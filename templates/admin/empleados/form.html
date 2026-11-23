@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Editar' if empleado else 'Nuevo' }} empleado{% endblock %}
+{% block content %}
+<h1>{{ 'Editar' if empleado else 'Nuevo' }} empleado</h1>
+
+{% for e in errores %}<div class="flash error">{{ e }}</div>{% endfor %}
+
+<form method="post" class="form">
+    <label>Nombre
+        <input name="nombre" value="{{ datos.nombre or '' }}" required>
+    </label>
+
+    <label class="check">
+        <input type="checkbox" name="activo" {{ 'checked' if datos.activo else '' }}> Activo
+    </label>
+
+    <h3>Servicios que realiza</h3>
+    {% for s in servicios %}
+    <label class="check">
+        <input type="checkbox" name="servicios" value="{{ s.id }}"
+               {{ 'checked' if s.id in datos.servicios else '' }}>
+        {{ s.nombre }}{{ '' if s.activo else ' (inactivo)' }}
+    </label>
+    {% else %}
+    <p><small>Primero crea servicios.</small></p>
+    {% endfor %}
+
+    <h3>Horario semanal</h3>
+    <table>
+        {% for nombre_dia in dias %}
+        {% set h = datos.horarios.get(loop.index0) %}
+        <tr>
+            <td>
+                <label class="check">
+                    <input type="checkbox" name="dia_{{ loop.index0 }}"
+                           {{ 'checked' if h else '' }}> {{ nombre_dia }}
+                </label>
+            </td>
+            <td><input type="time" name="inicio_{{ loop.index0 }}"
+                       value="{{ h[0] if h else '10:00' }}"></td>
+            <td><input type="time" name="fin_{{ loop.index0 }}"
+                       value="{{ h[1] if h else '19:00' }}"></td>
+        </tr>
+        {% endfor %}
+    </table>
+    <small>Los días sin marcar son días de descanso.</small>
+
+    <div class="actions">
+        <button class="btn" type="submit">Guardar</button>
+        <a href="/admin/empleados">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
