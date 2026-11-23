@@ -3,7 +3,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from config import SECRET_KEY
 from database import Base, engine
-from routers import public, api, auth,admin
+from routers import public, api, auth, admin, admin_servicios
 from seed import seed_datos
 from fastapi.responses import RedirectResponse
 from dependencies import RedirigirALogin
@@ -30,6 +30,7 @@ app.include_router(public.router)
 app.include_router(api.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(admin_servicios.router)
 
 @app.exception_handler(RedirigirALogin)
 async def redirigir_a_login(request, exc):

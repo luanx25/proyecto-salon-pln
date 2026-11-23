@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% block title %}Servicios{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1>Servicios</h1>
+    <a class="btn" href="/admin/servicios/nuevo">+ Nuevo servicio</a>
+</div>
+<table>
+    <tr><th>Nombre</th><th>Duración</th><th>Precio</th><th>Estado</th><th></th></tr>
+    {% for s in servicios %}
+    <tr>
+        <td>{{ s.nombre }}</td>
+        <td>{{ s.duracion_min }} min</td>
+        <td>{{ s.precio|moneda }}</td>
+        <td><span class="badge {{ '' if s.activo else 'inactivo' }}">{{ 'Activo' if s.activo else 'Inactivo' }}</span></td>
+        <td>
+            <a class="btn sec" href="/admin/servicios/{{ s.id }}/editar">Editar</a>
+            <form class="inline" method="post" action="/admin/servicios/{{ s.id }}/activar">
+                <button class="btn sec" type="submit">{{ 'Desactivar' if s.activo else 'Activar' }}</button>
+            </form>
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Aún no hay servicios.</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}
