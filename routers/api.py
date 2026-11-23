@@ -179,31 +179,7 @@ def procesar_mensaje_landing(payload: MensajeEntrada, db: Session = Depends(get_
     }
 
 
-@router.get("/citas")
-def listar_citas(db: Session = Depends(get_db)):
-    citas = (
-        db.query(Cita)
-        .order_by(Cita.id.desc())
-        .all()
-    )
 
-    resultado = []
-
-    for cita in citas:
-        resultado.append({
-            "id": cita.id,
-            "servicio": cita.servicio.nombre if cita.servicio else None,
-            "atendido_por": cita.empleado.nombre if cita.empleado else None,
-            "cliente_email": cita.cliente_email,
-            "cliente_telefono": cita.cliente_telefono,
-            "fecha_hora": cita.fecha_hora.isoformat(),
-            "estado": cita.estado,
-            "origen": cita.origen,
-            "mensaje_original": cita.mensaje_original,
-            "creado_en": cita.creado_en.isoformat() if cita.creado_en else None,
-        })
-
-    return resultado
 
 
 
