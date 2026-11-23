@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from database import Base
 from models import Servicio, Empleado, HorarioEmpleado
-from services import asignar_empleado_disponible, crear_cita
+from services import asignar_empleado_disponible, crear_cita, validar_disponibilidad
 
 
 @pytest.fixture
@@ -74,3 +74,14 @@ def test_cita_cancelada_libera_horario(db):
     tinte = db.query(Servicio).filter_by(nombre="tinte").first()
     empleado, _ = asignar_empleado_disponible(db, tinte, dia_futuro(10, 0))
     assert empleado is not None
+
+def test_reprogramar_ignora_la_propia_cita(db):
+    cita = agendar(db, "tinte", dia_futuro(10, 0))   # 10:00-11:30
+    tinte = db.query(Servicio).filter_by(nombre="tinte").first()
+
+    # Moverla 30 min choca consigo misma solo si no se excluye
+    ok, _ = validar_disponibilidad(db, dia_futuro(10, 30), tinte, cita.empleado)
+    assert not ok
+
+    ok, _ = validar_disponibilidad(db, dia_futuro(10, 30), tinte, cita.empleado, excluir_cita_id=cita.id)
+    assert ok

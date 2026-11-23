@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block title %}Citas{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1>Citas</h1>
+    <form method="get" class="inline">
+        <select name="estado">
+            <option value="">Todos los estados</option>
+            {% for clave, etiqueta in ESTADOS.items() %}
+            <option value="{{ clave }}" {{ 'selected' if clave == estado }}>{{ etiqueta }}</option>
+            {% endfor %}
+        </select>
+        <input type="date" name="fecha" value="{{ fecha }}">
+        <button class="btn" type="submit">Filtrar</button>
+        <a class="btn sec" href="/admin/citas">Limpiar</a>
+    </form>
+</div>
+<table>
+    <tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Atiende</th><th>Estado</th><th></th></tr>
+    {% for c in citas %}
+    <tr>
+        <td>{{ c.fecha_hora|fecha }}</td>
+        <td>{{ c.cliente_email }}<br><small>{{ c.cliente_telefono }}</small></td>
+        <td>{{ c.servicio.nombre }}</td>
+        <td>{{ c.empleado.nombre }}</td>
+        <td><span class="badge {{ c.estado }}">{{ ESTADOS[c.estado] }}</span></td>
+        <td><a class="btn sec" href="/admin/citas/{{ c.id }}">Ver</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">No hay citas con esos filtros.</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}

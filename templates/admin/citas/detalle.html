@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% block title %}Cita #{{ cita.id }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1>Cita #{{ cita.id }}</h1>
+    <a class="btn sec" href="/admin/citas">← Volver</a>
+</div>
+
+{% for e in errores %}<div class="flash error">{{ e }}</div>{% endfor %}
+
+<table>
+    <tr><th>Estado</th><td><span class="badge {{ cita.estado }}">{{ ESTADOS[cita.estado] }}</span></td></tr>
+    <tr><th>Fecha y hora</th><td>{{ cita.fecha_hora|fecha }}</td></tr>
+    <tr><th>Servicio</th><td>{{ cita.servicio.nombre }} ({{ cita.servicio.duracion_min }} min · {{ cita.servicio.precio|moneda }})</td></tr>
+    <tr><th>Atiende</th><td>{{ cita.empleado.nombre }}</td></tr>
+    <tr><th>Correo</th><td>{{ cita.cliente_email }}</td></tr>
+    <tr><th>Teléfono</th><td>{{ cita.cliente_telefono }}</td></tr>
+    <tr><th>Origen</th><td>{{ cita.origen }}</td></tr>
+    <tr><th>Mensaje original</th><td>{{ cita.mensaje_original or '—' }}</td></tr>
+    <tr><th>Creada</th><td>{{ cita.creado_en|fecha }}</td></tr>
+</table>
+
+<h2>Cambiar estado</h2>
+<form method="post" action="/admin/citas/{{ cita.id }}/estado" class="inline">
+    <select name="estado">
+        {% for clave, etiqueta in ESTADOS.items() %}
+        <option value="{{ clave }}" {{ 'selected' if clave == cita.estado }}>{{ etiqueta }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn" type="submit">Guardar estado</button>
+</form>
+
+{% if cita.estado == 'confirmada' %}
+<form method="post" action="/admin/citas/{{ cita.id }}/estado" class="inline">
+    <input type="hidden" name="estado" value="cancelada">
+    <button class="btn danger" type="submit" onclick="return confirm('¿Cancelar esta cita?')">Cancelar cita</button>
+</form>
+
+<h2>Reprogramar</h2>
+<form method="post" action="/admin/citas/{{ cita.id }}/reprogramar" class="form">
+    <label>Nueva fecha y hora
+        <input type="datetime-local" name="fecha_hora" step="900"
+               value="{{ cita.fecha_hora.strftime('%Y-%m-%dT%H:%M') }}" required>
+    </label>
+    <label>Atiende
+        <select name="empleado_id">
+            {% for e in candidatos %}
+            <option value="{{ e.id }}" {{ 'selected' if e.id == cita.empleado_id }}>{{ e.nombre }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <div class="actions"><button class="btn" type="submit">Reprogramar</button></div>
+</form>
+{% endif %}
+{% endblock %}

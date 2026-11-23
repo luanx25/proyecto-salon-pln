@@ -75,22 +75,20 @@ def validar_horario_general(fecha_hora: datetime, servicio: Servicio):
     return True, "Horario válido."
 
 
-def hay_traslape(db: Session, empleado: Empleado, inicio: datetime, fin: datetime):
+def hay_traslape(db: Session, empleado: Empleado, inicio: datetime, fin: datetime, excluir_cita_id: int | None = None):
     """True si el empleado ya tiene una cita que choca con [inicio, fin)."""
     inicio_dia = inicio.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    citas_dia = (
-        db.query(Cita)
-        .filter(
-            Cita.empleado_id == empleado.id,
-            Cita.estado != "cancelada",
-            Cita.fecha_hora >= inicio_dia,
-            Cita.fecha_hora < inicio_dia + timedelta(days=1),
+    consulta = db.query(Cita).filter(
+        Cita.empleado_id == empleado.id,
+        Cita.estado != "cancelada",
+        Cita.fecha_hora >= inicio_dia,
+        Cita.fecha_hora < inicio_dia + timedelta(days=1),
         )
-        .all()
-    )
+    if excluir_cita_id is not None:
+        consulta = consulta.filter(Cita.id != excluir_cita_id)
 
-    for c in citas_dia:
+    for c in consulta.all():
         c_inicio = c.fecha_hora
         c_fin = c_inicio + timedelta(minutes=c.servicio.duracion_min)
         if inicio < c_fin and fin > c_inicio:
@@ -98,7 +96,11 @@ def hay_traslape(db: Session, empleado: Empleado, inicio: datetime, fin: datetim
 
     return False
 
-def validar_disponibilidad(db: Session, fecha_hora: datetime, servicio: Servicio, empleado: Empleado):
+
+def validar_disponibilidad(
+        db: Session, fecha_hora: datetime, servicio: Servicio, empleado: Empleado,
+        excluir_cita_id: int | None = None,
+):
     ok, mensaje = validar_horario_general(fecha_hora, servicio)
     if not ok:
         return False, mensaje
@@ -108,11 +110,10 @@ def validar_disponibilidad(db: Session, fecha_hora: datetime, servicio: Servicio
     if not empleado_trabaja_en(empleado, fecha_hora, fin):
         return False, f"{empleado.nombre} no trabaja en ese horario."
 
-    if hay_traslape(db, empleado, fecha_hora, fin):
+    if hay_traslape(db, empleado, fecha_hora, fin, excluir_cita_id):
         return False, "El horario ya está ocupado. Elige otro horario."
 
     return True, "Horario disponible."
-
 
 def empleado_trabaja_en(empleado: Empleado, inicio: datetime, fin: datetime):
     """True si [inicio, fin] cae dentro de algún bloque laboral del empleado ese día."""
