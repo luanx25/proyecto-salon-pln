@@ -1,5 +1,6 @@
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup, escape
 
 from constantes import ESTADOS_CITA
 
@@ -19,6 +20,7 @@ templates.env.globals["get_flashes"] = _leer_flashes
 templates.env.globals["ESTADOS"] = ESTADOS_CITA
 templates.env.filters["fecha"] = lambda d: d.strftime("%d/%m/%Y %H:%M") if d else ""
 templates.env.filters["moneda"] = lambda v: f"${v:,.2f}"
+templates.env.filters["saltos"] = lambda t: Markup(escape(t or "").replace("\n", Markup("<br>")))
 
 
 def render_admin(request, plantilla, admin, seccion, status_code=200, **contexto):

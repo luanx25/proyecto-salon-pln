@@ -1,0 +1,7 @@
+<section id="{{ s.clave }}" class="seccion alt">
+    <div class="wrap narrow">
+        <h2>{{ s.titulo }}</h2>
+        {% if s.subtitulo %}<p class="sub">{{ s.subtitulo }}</p>{% endif %}
+        {% include "partials/reserva.html" %}
+    </div>
+</section>

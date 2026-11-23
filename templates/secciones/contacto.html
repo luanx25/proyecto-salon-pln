@@ -1,0 +1,15 @@
+<section id="{{ s.clave }}" class="seccion">
+    <div class="wrap narrow">
+        <h2>{{ s.titulo }}</h2>
+        {% if s.subtitulo %}<p class="sub">{{ s.subtitulo }}</p>{% endif %}
+        <ul class="contacto">
+            {% if config.direccion %}<li>📍 {{ config.direccion }}</li>{% endif %}
+            {% if config.telefono %}<li>📞 {{ config.telefono }}</li>{% endif %}
+            {% if config.email %}<li>✉️ <a href="mailto:{{ config.email }}">{{ config.email }}</a></li>{% endif %}
+            {% if config.horario_texto %}<li>🕒 {{ config.horario_texto }}</li>{% endif %}
+            {% if config.whatsapp %}<li>💬 <a href="https://wa.me/{{ config.whatsapp }}">WhatsApp</a></li>{% endif %}
+            {% if config.instagram %}<li>📷 <a href="{{ config.instagram }}">Instagram</a></li>{% endif %}
+            {% if config.facebook %}<li>👍 <a href="{{ config.facebook }}">Facebook</a></li>{% endif %}
+        </ul>
+    </div>
+</section>

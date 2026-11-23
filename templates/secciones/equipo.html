@@ -1,0 +1,11 @@
+<section id="{{ s.clave }}" class="seccion">
+    <div class="wrap">
+        <h2>{{ s.titulo }}</h2>
+        {% if s.subtitulo %}<p class="sub">{{ s.subtitulo }}</p>{% endif %}
+        <div class="grid">
+            {% for e in empleados %}
+            <div class="card"><div class="avatar">{{ e.nombre[0]|upper }}</div><h3>{{ e.nombre }}</h3></div>
+            {% endfor %}
+        </div>
+    </div>
+</section>

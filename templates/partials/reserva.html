@@ -1,0 +1,48 @@
+<form id="form-reserva" class="reserva-form">
+    <label>Correo <input type="email" id="r-email" required></label>
+    <label>Teléfono <input type="tel" id="r-tel" required></label>
+    <label>¿Qué necesitas?
+        <textarea id="r-msg" rows="3" required placeholder="Quiero una manicura mañana a las 4 pm"></textarea>
+    </label>
+    <button class="btn" type="submit">Reservar</button>
+</form>
+<div id="r-resultado" class="resultado" hidden></div>
+
+<script>
+    document.getElementById("form-reserva").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const out = document.getElementById("r-resultado");
+        out.hidden = false;
+        out.className = "resultado";
+        out.textContent = "Procesando…";
+        try {
+            const resp = await fetch("/api/landing/message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    cliente_email: document.getElementById("r-email").value,
+                    cliente_telefono: document.getElementById("r-tel").value,
+                    mensaje: document.getElementById("r-msg").value,
+                }),
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                out.className = "resultado error";
+                out.textContent = "Revisa los datos e inténtalo de nuevo.";
+                return;
+            }
+            let texto = data.mensaje;
+            if (data.ok && data.cita) {
+                texto += ` ${data.cita.servicio} el ${new Date(data.cita.fecha_hora).toLocaleString("es-MX")} con ${data.atendido_por}.`;
+            }
+            if (data.faltante && data.faltante.length) {
+                texto += " Falta indicar: " + data.faltante.join(", ") + ".";
+            }
+            out.className = "resultado " + (data.ok ? "ok" : "error");
+            out.textContent = texto;
+        } catch (err) {
+            out.className = "resultado error";
+            out.textContent = "No se pudo conectar con el servidor.";
+        }
+    });
+</script>

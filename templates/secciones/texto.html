@@ -1,0 +1,9 @@
+<section id="{{ s.clave }}" class="seccion">
+    <div class="wrap {{ 'dos-col' if s.imagen }}">
+        <div>
+            <h2>{{ s.titulo }}</h2>
+            <p>{{ s.contenido|saltos }}</p>
+        </div>
+        {% if s.imagen %}<img src="{{ s.imagen }}" alt="{{ s.titulo }}">{% endif %}
+    </div>
+</section>

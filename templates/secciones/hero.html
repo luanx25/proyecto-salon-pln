@@ -1,0 +1,6 @@
+<section id="{{ s.clave }}" class="hero"
+         {% if s.imagen %}style="background-image: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('{{ s.imagen }}')"{% endif %}>
+    <h1>{{ s.titulo }}</h1>
+    {% if s.subtitulo %}<p>{{ s.subtitulo }}</p>{% endif %}
+    {% if s.boton_texto and s.boton_enlace %}<a class="btn" href="{{ s.boton_enlace }}">{{ s.boton_texto }}</a>{% endif %}
+</section>

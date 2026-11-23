@@ -1,0 +1,17 @@
+<section id="{{ s.clave }}" class="seccion alt">
+    <div class="wrap">
+        <h2>{{ s.titulo }}</h2>
+        {% if s.subtitulo %}<p class="sub">{{ s.subtitulo }}</p>{% endif %}
+        <div class="grid">
+            {% for sv in servicios %}
+            <div class="card">
+                <h3>{{ sv.nombre|capitalize }}</h3>
+                <p>{{ sv.duracion_min }} min</p>
+                <strong>{{ sv.precio|moneda }}</strong>
+            </div>
+            {% else %}
+            <p>Próximamente.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
