@@ -1,0 +1,16 @@
+{% extends "admin/base.html" %}
+{% block title %}Datos del salón{% endblock %}
+{% block content %}
+<h1>Datos del salón</h1>
+{% for e in errores %}<div class="flash error">{{ e }}</div>{% endfor %}
+
+<form method="post" class="form">
+    {% for clave, etiqueta, tipo in campos %}
+    <label>{{ etiqueta }}
+        <input type="{{ tipo }}" name="{{ clave }}" value="{{ datos[clave] }}">
+    </label>
+    {% endfor %}
+    <small>El horario es solo texto informativo; los horarios reales de reserva se configuran en Empleados.</small>
+    <div class="actions"><button class="btn" type="submit">Guardar</button></div>
+</form>
+{% endblock %}

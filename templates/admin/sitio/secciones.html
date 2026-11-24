@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% block title %}Secciones{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1>Secciones de la página</h1>
+    <a class="btn sec" href="/" target="_blank">Ver página ↗</a>
+</div>
+<table>
+    <tr><th>Título</th><th>Tipo</th><th>Visible</th><th></th></tr>
+    {% for s in secciones %}
+    <tr>
+        <td>{{ s.titulo or '(sin título)' }}</td>
+        <td>{{ s.tipo }}</td>
+        <td>{{ 'Sí' if s.visible else 'No' }}</td>
+        <td><a class="btn sec" href="/admin/secciones/{{ s.id }}/editar">Editar</a></td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

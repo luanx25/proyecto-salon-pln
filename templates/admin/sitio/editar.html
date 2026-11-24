@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block title %}Editar sección{% endblock %}
+{% block content %}
+<h1>Editar sección: {{ seccion.tipo }}</h1>
+{% for e in errores %}<div class="flash error">{{ e }}</div>{% endfor %}
+
+<form method="post" class="form">
+    <label>Título <input name="titulo" value="{{ datos.titulo }}" required></label>
+
+    {% if 'subtitulo' in campos %}
+    <label>Subtítulo <input name="subtitulo" value="{{ datos.subtitulo }}"></label>
+    {% endif %}
+
+    {% if 'contenido' in campos %}
+    <label>Texto
+        <textarea name="contenido" rows="8" style="width:100%">{{ datos.contenido }}</textarea>
+        <small>Los saltos de línea se respetan. No se admite HTML.</small>
+    </label>
+    {% endif %}
+
+    {% if 'boton_texto' in campos %}
+    <label>Texto del botón <input name="boton_texto" value="{{ datos.boton_texto }}"></label>
+    <label>Enlace del botón <input name="boton_enlace" value="{{ datos.boton_enlace }}">
+        <small>Ejemplos: #reserva, #servicios, https://…</small>
+    </label>
+    {% endif %}
+
+    <div class="actions">
+        <button class="btn" type="submit">Guardar</button>
+        <a href="/admin/secciones">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
