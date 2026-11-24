@@ -3,16 +3,41 @@
 {% block content %}
 <div class="toolbar">
     <h1>Secciones de la página</h1>
-    <a class="btn sec" href="/" target="_blank">Ver página ↗</a>
+    <div>
+        <a class="btn sec" href="/" target="_blank">Ver página ↗</a>
+        <form class="inline" method="post" action="/admin/secciones/nueva">
+            <button class="btn" type="submit">+ Sección de texto</button>
+        </form>
+    </div>
 </div>
 <table>
-    <tr><th>Título</th><th>Tipo</th><th>Visible</th><th></th></tr>
+    <tr><th>Orden</th><th>Título</th><th>Tipo</th><th>Visible</th><th></th></tr>
     {% for s in secciones %}
     <tr>
+        <td>
+            <form class="inline" method="post" action="/admin/secciones/{{ s.id }}/mover">
+                <input type="hidden" name="direccion" value="subir">
+                <button class="btn sec" type="submit" {{ 'disabled' if loop.first }}>↑</button>
+            </form>
+            <form class="inline" method="post" action="/admin/secciones/{{ s.id }}/mover">
+                <input type="hidden" name="direccion" value="bajar">
+                <button class="btn sec" type="submit" {{ 'disabled' if loop.last }}>↓</button>
+            </form>
+        </td>
         <td>{{ s.titulo or '(sin título)' }}</td>
         <td>{{ s.tipo }}</td>
-        <td>{{ 'Sí' if s.visible else 'No' }}</td>
-        <td><a class="btn sec" href="/admin/secciones/{{ s.id }}/editar">Editar</a></td>
+        <td><span class="badge {{ 'confirmada' if s.visible else 'inactivo' }}">{{ 'Visible' if s.visible else 'Oculta' }}</span></td>
+        <td>
+            <a class="btn sec" href="/admin/secciones/{{ s.id }}/editar">Editar</a>
+            <form class="inline" method="post" action="/admin/secciones/{{ s.id }}/visibilidad">
+                <button class="btn sec" type="submit">{{ 'Ocultar' if s.visible else 'Mostrar' }}</button>
+            </form>
+            {% if s.tipo == 'texto' %}
+            <form class="inline" method="post" action="/admin/secciones/{{ s.id }}/eliminar">
+                <button class="btn danger" type="submit" onclick="return confirm('¿Eliminar esta sección?')">Eliminar</button>
+            </form>
+            {% endif %}
+        </td>
     </tr>
     {% endfor %}
 </table>

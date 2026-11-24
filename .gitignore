@@ -25,6 +25,8 @@ credentials.json
 token.json
 venv/
 __pycache__/
+static/uploads/*
+!static/uploads/.gitkeep
 
 # Archivos temporales
 t

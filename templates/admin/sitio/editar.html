@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block title %}Editar sección{% endblock %}
 {% block content %}
-<h1>Editar sección: {{ seccion.tipo }}</h1>
+<h1>Editar sección: {{ sec.tipo }}</h1>
 {% for e in errores %}<div class="flash error">{{ e }}</div>{% endfor %}
 
 <form method="post" class="form">
@@ -30,4 +30,26 @@
         <a href="/admin/secciones">Cancelar</a>
     </div>
 </form>
+
+{% if con_imagen %}
+<h2>Imagen</h2>
+<div class="form">
+    {% if seccion.imagen %}
+    <img src="{{ seccion.imagen }}" alt="Imagen actual" style="max-width:100%; border-radius:8px">
+    <form method="post" action="/admin/secciones/{{ seccion.id }}/imagen/quitar" style="margin-top:.8rem">
+        <button class="btn danger" type="submit">Quitar imagen</button>
+    </form>
+    {% else %}
+    <p><small>Esta sección aún no tiene imagen.</small></p>
+    {% endif %}
+
+    <form method="post" action="/admin/secciones/{{ seccion.id }}/imagen" enctype="multipart/form-data">
+        <label>{{ 'Reemplazar' if seccion.imagen else 'Subir' }} imagen
+            <input type="file" name="archivo" accept="image/jpeg,image/png,image/webp">
+            <small>JPG, PNG o WEBP, máximo 3 MB.{% if seccion.tipo == 'hero' %} En el inicio se usa como fondo.{% endif %}</small>
+        </label>
+        <div class="actions"><button class="btn" type="submit">Subir</button></div>
+    </form>
+</div>
+{% endif %}
 {% endblock %}

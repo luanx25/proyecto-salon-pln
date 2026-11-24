@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+import uuid
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -10,6 +12,7 @@ from sitio import (
     obtener_config, validar_config, guardar_config,
 )
 from templating import render_admin, flash
+from uploads import guardar_imagen, borrar_imagen
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(get_admin_actual)])
 
@@ -60,7 +63,7 @@ def secciones_lista(request: Request, admin: Usuario = Depends(get_admin_actual)
 def _render_editar(request, admin, seccion, datos, errores, status_code=200):
     return render_admin(
         request, "admin/sitio/editar.html", admin, "secciones", status_code=status_code,
-        seccion=seccion, datos=datos, errores=errores,
+        sec=seccion, datos=datos, errores=errores,
         campos=CAMPOS_POR_TIPO[seccion.tipo],
         con_imagen=seccion.tipo in TIPOS_CON_IMAGEN,
     )
@@ -107,4 +110,100 @@ async def editar(
         setattr(s, c, valor)
     db.commit()
     flash(request, "Sección actualizada.")
+    return RedirectResponse("/admin/secciones", status_code=303)
+
+@router.post("/secciones/{seccion_id}/imagen")
+async def subir_imagen(
+        seccion_id: int, request: Request,
+        archivo: UploadFile | None = File(None), db: Session = Depends(get_db),
+):
+    s = _seccion(db, seccion_id)
+    destino = f"/admin/secciones/{s.id}/editar"
+
+    if s.tipo not in TIPOS_CON_IMAGEN:
+        raise HTTPException(status_code=400, detail="Esta sección no admite imagen.")
+    if not archivo or not archivo.filename:
+        flash(request, "Elige un archivo.", "error")
+        return RedirectResponse(destino, status_code=303)
+
+    try:
+        nueva = await guardar_imagen(archivo)
+    except ValueError as e:
+        flash(request, str(e), "error")
+        return RedirectResponse(destino, status_code=303)
+
+    borrar_imagen(s.imagen)
+    s.imagen = nueva
+    db.commit()
+    flash(request, "Imagen actualizada.")
+    return RedirectResponse(destino, status_code=303)
+
+
+@router.post("/secciones/{seccion_id}/imagen/quitar")
+def quitar_imagen(seccion_id: int, request: Request, db: Session = Depends(get_db)):
+    s = _seccion(db, seccion_id)
+    borrar_imagen(s.imagen)
+    s.imagen = None
+    db.commit()
+    flash(request, "Imagen eliminada.")
+    return RedirectResponse(f"/admin/secciones/{s.id}/editar", status_code=303)
+
+
+@router.post("/secciones/{seccion_id}/mover")
+def mover(seccion_id: int, direccion: str = Form(...), db: Session = Depends(get_db)):
+    todas = db.query(SeccionPagina).order_by(SeccionPagina.orden, SeccionPagina.id).all()
+    idx = next((i for i, s in enumerate(todas) if s.id == seccion_id), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Sección no encontrada.")
+
+    destino = idx - 1 if direccion == "subir" else idx + 1
+    if 0 <= destino < len(todas):
+        todas[idx], todas[destino] = todas[destino], todas[idx]
+        for i, s in enumerate(todas):   # renumera para evitar empates
+            s.orden = i
+        db.commit()
+
+    return RedirectResponse("/admin/secciones", status_code=303)
+
+
+@router.post("/secciones/{seccion_id}/visibilidad")
+def alternar_visibilidad(seccion_id: int, request: Request, db: Session = Depends(get_db)):
+    s = _seccion(db, seccion_id)
+    s.visible = not s.visible
+    db.commit()
+
+    if s.tipo == "reserva" and not s.visible:
+        flash(request, "Ocultaste la sección de reservas: los clientes ya no podrán agendar desde la página.", "warn")
+    else:
+        flash(request, f"Sección {'visible' if s.visible else 'oculta'}.")
+    return RedirectResponse("/admin/secciones", status_code=303)
+
+
+@router.post("/secciones/nueva")
+def nueva(request: Request, db: Session = Depends(get_db)):
+    ultimo = db.query(SeccionPagina).order_by(SeccionPagina.orden.desc()).first()
+    s = SeccionPagina(
+        clave=f"texto-{uuid.uuid4().hex[:8]}",
+        tipo="texto",
+        titulo="Nueva sección",
+        orden=(ultimo.orden + 1) if ultimo else 0,
+        visible=False,   # oculta hasta que el admin la complete
+    )
+    db.add(s)
+    db.commit()
+    flash(request, "Sección creada y oculta. Complétala y actívala cuando esté lista.", "warn")
+    return RedirectResponse(f"/admin/secciones/{s.id}/editar", status_code=303)
+
+
+@router.post("/secciones/{seccion_id}/eliminar")
+def eliminar(seccion_id: int, request: Request, db: Session = Depends(get_db)):
+    s = _seccion(db, seccion_id)
+    if s.tipo != "texto":
+        flash(request, "Solo se pueden eliminar secciones de texto. Las demás puedes ocultarlas.", "error")
+        return RedirectResponse("/admin/secciones", status_code=303)
+
+    borrar_imagen(s.imagen)
+    db.delete(s)
+    db.commit()
+    flash(request, "Sección eliminada.")
     return RedirectResponse("/admin/secciones", status_code=303)
