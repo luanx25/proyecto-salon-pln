@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timedelta, date, time
 from sqlalchemy.orm import Session
 from models import Servicio, Cita, Empleado
-
+from gcal import hay_bloqueo_externo
 
 HORA_APERTURA = 9
 HORA_CIERRE = 19
@@ -107,6 +107,9 @@ def validar_disponibilidad(
 
     fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
 
+    if hay_bloqueo_externo(fecha_hora, fin):
+        return False, "El salón no tiene disponibilidad en ese horario. Elige otro horario."
+
     if not empleado_trabaja_en(empleado, fecha_hora, fin):
         return False, f"{empleado.nombre} no trabaja en ese horario."
 
@@ -131,6 +134,9 @@ def asignar_empleado_disponible(db: Session, servicio: Servicio, fecha_hora: dat
         return None, mensaje
 
     fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
+
+    if hay_bloqueo_externo(fecha_hora, fin):
+        return None, "El salón no tiene disponibilidad en ese horario. Elige otro horario."
 
     candidatos = [e for e in servicio.empleados if e.activo]
     if not candidatos:

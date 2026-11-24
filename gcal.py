@@ -7,7 +7,9 @@ import httplib2
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-
+import time as _time
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from config import GOOGLE_CREDENTIALS_FILE, GOOGLE_CALENDAR_ID, TIMEZONE
 
 logger = logging.getLogger("gcal")
@@ -118,3 +120,69 @@ def sincronizar_cita(db, cita) -> str:
         db.rollback()
         logger.exception("No se pudo sincronizar la cita %s con Google Calendar", cita_id)
         return "error"
+
+TZ = ZoneInfo(TIMEZONE)
+CACHE_SEGUNDOS = 60
+_CACHE: dict[date, tuple[float, list]] = {}
+
+
+def _a_local(texto: str) -> datetime:
+    """Convierte una fecha RFC3339 de Google a hora local sin zona (como guarda la BD)."""
+    dt = datetime.fromisoformat(texto.replace("Z", "+00:00"))
+    return dt.astimezone(TZ).replace(tzinfo=None)
+
+
+def _bloqueos_google(dia: date) -> list[tuple[datetime, datetime]]:
+    inicio = datetime.combine(dia, time.min, tzinfo=TZ)
+    fin = inicio + timedelta(days=1)
+
+    respuesta = _servicio().events().list(
+        calendarId=GOOGLE_CALENDAR_ID,
+        timeMin=inicio.isoformat(),
+        timeMax=fin.isoformat(),
+        singleEvents=True,
+        orderBy="startTime",
+        maxResults=250,
+    ).execute()
+
+    bloqueos = []
+    for ev in respuesta.get("items", []):
+        if ev.get("status") == "cancelled":
+            continue
+        if ev.get("transparency") == "transparent":      # marcado como "disponible"
+            continue
+        if ev.get("extendedProperties", {}).get("private", {}).get("cita_id"):
+            continue                                       # lo creó la app: la BD ya lo cuenta
+
+        if "dateTime" in ev["start"]:
+            bloqueos.append((_a_local(ev["start"]["dateTime"]), _a_local(ev["end"]["dateTime"])))
+        else:                                              # evento de todo el día
+            bloqueos.append((datetime.combine(dia, time.min), datetime.combine(dia, time.max)))
+
+    return bloqueos
+
+
+def bloqueos_del_dia(dia: date) -> list[tuple[datetime, datetime]]:
+    if not gcal_habilitado():
+        return []
+
+    ahora = _time.monotonic()
+    guardado = _CACHE.get(dia)
+    if guardado and ahora - guardado[0] < CACHE_SEGUNDOS:
+        return guardado[1]
+
+    try:
+        bloqueos = _bloqueos_google(dia)
+    except Exception:
+        # Si Google falla, la reserva sigue funcionando sin los bloqueos externos
+        logger.warning("No se pudo leer Google Calendar; se ignoran los bloqueos externos.", exc_info=True)
+        return []
+
+    if len(_CACHE) > 200:
+        _CACHE.clear()
+    _CACHE[dia] = (ahora, bloqueos)
+    return bloqueos
+
+
+def hay_bloqueo_externo(inicio: datetime, fin: datetime) -> bool:
+    return any(inicio < b_fin and fin > b_ini for b_ini, b_fin in bloqueos_del_dia(inicio.date()))

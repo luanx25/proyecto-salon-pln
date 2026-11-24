@@ -85,3 +85,13 @@ def test_reprogramar_ignora_la_propia_cita(db):
 
     ok, _ = validar_disponibilidad(db, dia_futuro(10, 30), tinte, cita.empleado, excluir_cita_id=cita.id)
     assert ok
+
+def test_bloqueo_externo_rechaza_el_horario(db, monkeypatch):
+    import services
+    monkeypatch.setattr(services, "hay_bloqueo_externo", lambda inicio, fin: True)
+
+    manicura = db.query(Servicio).filter_by(nombre="manicura").first()
+    empleado, mensaje = asignar_empleado_disponible(db, manicura, dia_futuro(12, 0))
+
+    assert empleado is None
+    assert "disponibilidad" in mensaje
