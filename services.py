@@ -152,13 +152,14 @@ def asignar_empleado_disponible(db: Session, servicio: Servicio, fecha_hora: dat
     return None, "No hay personal disponible en ese horario. Elige otro horario."
 
 def crear_cita(
-    db: Session,
-    servicio: Servicio,
-    empleado: Empleado,
-    fecha_hora: datetime,
-    cliente_email: str,
-    cliente_telefono: str,
-    mensaje_original: str
+        db: Session,
+        servicio: Servicio,
+        empleado: Empleado,
+        fecha_hora: datetime,
+        cliente_email: str,
+        cliente_telefono: str,
+        mensaje_original: str,
+        origen: str = "landing",
 ):
     telefono_limpio = re.sub(r"\D", "", cliente_telefono)
 
@@ -170,7 +171,7 @@ def crear_cita(
         mensaje_original=mensaje_original,
         fecha_hora=fecha_hora,
         estado="confirmada",
-        origen="landing"
+        origen=origen,
     )
 
     db.add(cita)

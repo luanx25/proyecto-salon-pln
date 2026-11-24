@@ -106,20 +106,19 @@ def detectar_cita_id(texto: str):
     return int(m.group(1)) if m else None
 
 
+def detectar_servicio(texto: str, nombres_extra: list[str] | None = None):
+    """Busca el servicio por sinónimos y por el nombre real de los servicios de la BD."""
+    candidatos = dict(SINONIMOS_SERVICIOS)
+    for nombre in nombres_extra or []:
+        candidatos[normalizar(nombre)] = nombre      # la BD tiene prioridad sobre los sinónimos
 
-def detectar_servicio(texto: str):
-    # Se ordenan de mayor a menor longitud para detectar frases más específicas primero.
-    sinonimos_ordenados = sorted(
-        SINONIMOS_SERVICIOS.items(),
-        key=lambda item: len(item[0]),
-        reverse=True
-    )
-
-    for frase, servicio_canonico in sinonimos_ordenados:
-        if frase in texto:
-            return servicio_canonico
+    # De mayor a menor longitud para que las frases específicas ganen
+    for frase in sorted(candidatos, key=len, reverse=True):
+        if re.search(rf"\b{re.escape(frase)}\b", texto):
+            return candidatos[frase]
 
     return None
+
 def _a_numero(token: str) -> int:
     return int(token) if token.isdigit() else NUMEROS[token]
 
@@ -241,13 +240,23 @@ def detectar_hora(texto: str):
 
     return None
 
+def detectar_hora_suelta(texto: str):
+    """'4', '4:30', '4 de la tarde', 'tres'. Solo si el mensaje entero es una hora."""
+    m = re.fullmatch(
+        rf"(\d{{1,2}}|{_NUM_RE})(?::([0-5]\d))?(?: (?:de la|por la|en la) (?:manana|tarde|noche))?",
+        texto,
+    )
+    if not m:
+        return None
+    hora = _ajustar_hora(_a_numero(m.group(1)), _franja(texto), None)
+    return time(hora, int(m.group(2) or 0)) if 0 <= hora <= 23 else None
 
 
-def parse_mensaje(mensaje: str, hoy: date | None = None) -> dict:
+def parse_mensaje(mensaje: str, nombres_servicios: list[str] | None = None, hoy: date | None = None) -> dict:
     texto_normalizado = normalizar(mensaje)
 
     intencion = detectar_intencion(texto_normalizado)
-    servicio = detectar_servicio(texto_normalizado)
+    servicio = detectar_servicio(texto_normalizado, nombres_servicios)
     fecha = detectar_fecha(texto_normalizado, hoy)
     hora = detectar_hora(texto_normalizado)
     cita_id = detectar_cita_id(texto_normalizado)
