@@ -1,7 +1,7 @@
 from datetime import date, time
 
-from nlp import detectar_fecha, detectar_hora, normalizar
-
+from nlp import detectar_fecha, detectar_hora, normalizar, detectar_cita_id, detectar_intencion
+import pytest
 HOY = date(2026, 11, 23)  # lunes
 
 
@@ -96,3 +96,32 @@ def test_horas_con_palabras():
 
 def test_hora_invalida():
     assert hora("a las 27") is None
+
+def intencion(texto):
+    return detectar_intencion(normalizar(texto))
+
+
+@pytest.mark.parametrize("texto, esperada", [
+    ("Quiero una manicura mañana a las 4", "reservar"),
+    ("quiero reservar mi cita para el viernes", "reservar"),
+    ("Cancela mi cita", "cancelar"),
+    ("ya no puedo ir", "cancelar"),
+    ("quiero cambiar mi cita para el sábado", "reprogramar"),
+    ("¿Cuándo es mi cita?", "consultar"),
+    ("¿Cuánto cuesta un tinte?", "cotizar"),
+    ("hola", "saludo"),
+    ("buenas tardes quiero un peinado", "reservar"),
+    ("sí", "afirmar"),
+    ("no", "abortar"),
+    ("olvídalo", "abortar"),
+    ("blablabla", "ayuda"),
+])
+def test_intenciones(texto, esperada):
+    assert intencion(texto) == esperada
+
+
+def test_numero_de_cita():
+    assert detectar_cita_id(normalizar("cancelar la cita 12")) == 12
+    assert detectar_cita_id(normalizar("cita numero 15")) == 15
+    assert detectar_cita_id(normalizar("quiero una cita 3 pm")) is None
+    assert detectar_cita_id(normalizar("cita 12:30")) is None

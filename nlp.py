@@ -51,6 +51,22 @@ DIAS_SEMANA = {
 # "por la mañana", "en la mañana"... son franjas del día, no "el día de mañana"
 FRANJA_MANANA_RE = re.compile(r"\b(?:por|en|de|a)\s+la\s+manana\b")
 
+AFIRMAR = r"(?:si|sii+|claro|confirmo|confirmar|correcto|dale|de acuerdo|ok|okay|va|sale)(?: por favor)?"
+NEGAR = r"no|nel|no gracias|mejor no"
+
+# El orden importa: "quiero cambiar mi cita" debe ser reprogramar antes que reservar
+PATRONES_INTENCION = [
+    ("abortar", r"\b(?:olvidalo|olvida eso|dejalo asi|dejalo|mejor no|no gracias)\b"),
+    ("cancelar", r"\b(?:cancel\w*|anul\w*)\b|\bno (?:puedo|podre|voy a poder) (?:ir|asistir|llegar)\b"),
+    ("reprogramar", r"\b(?:reprogram\w*|cambiar|mover|pospon\w*|adelantar|atrasar|otro dia|otra hora|otra fecha)\b"),
+    ("consultar", r"\bmis citas\b|\bcuando es mi cita\b|\bque citas\b|\btengo (?:una |alguna )?cita\b"
+                  r"|\b(?:ver|revisar|consultar) (?:mi|mis) citas?\b"),
+    ("cotizar", r"\b(?:cuanto|cuesta|cuestan|precios?|cotiz\w*|tarifas?|costos?)\b"),
+    ("reservar", r"\b(?:reserv\w*|agend\w*|apartar|citas?|quiero|necesito|me gustaria|quisiera|turno)\b"),
+    ("saludo", r"\b(?:hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey)\b"),
+]
+
+
 
 def normalizar(texto: str) -> str:
     texto = texto.lower()
@@ -70,16 +86,25 @@ def normalizar(texto: str) -> str:
 
 
 def detectar_intencion(texto: str) -> str:
-    if re.search(r"cancelar|anular", texto):
-        return "cancelar"
+    if re.fullmatch(AFIRMAR, texto):
+        return "afirmar"
+    if re.fullmatch(NEGAR, texto):
+        return "abortar"
 
-    if re.search(r"cuanto|cuesta|precio|cotiz", texto):
-        return "cotizar"
+    for intencion, patron in PATRONES_INTENCION:
+        if re.search(patron, texto):
+            return intencion
 
-    if re.search(r"reservar|agendar|apartar|cita|quiero", texto):
-        return "reservar"
+    return "ayuda"
 
-    return "consultar"
+
+def detectar_cita_id(texto: str):
+    """'cancelar la cita 12' -> 12. No confunde 'cita 3 pm' con un número de cita."""
+    m = re.search(r"\bcita\s*(?:numero|num|no)?\s*(\d{1,6})\b(?!\s*(?:am|pm|:))", texto)
+    if not m:
+        m = re.search(r"\bnumero\s*(\d{1,6})\b", texto)
+    return int(m.group(1)) if m else None
+
 
 
 def detectar_servicio(texto: str):
@@ -218,13 +243,14 @@ def detectar_hora(texto: str):
 
 
 
-def parse_mensaje(mensaje: str) -> dict:
+def parse_mensaje(mensaje: str, hoy: date | None = None) -> dict:
     texto_normalizado = normalizar(mensaje)
 
     intencion = detectar_intencion(texto_normalizado)
     servicio = detectar_servicio(texto_normalizado)
-    fecha = detectar_fecha(texto_normalizado)
+    fecha = detectar_fecha(texto_normalizado, hoy)
     hora = detectar_hora(texto_normalizado)
+    cita_id = detectar_cita_id(texto_normalizado)
 
     faltante = []
 
@@ -243,5 +269,6 @@ def parse_mensaje(mensaje: str) -> dict:
         "servicio": servicio,
         "fecha": fecha,
         "hora": hora,
+        "cita_id": cita_id,
         "faltante": faltante,
     }
