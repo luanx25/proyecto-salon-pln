@@ -10,6 +10,7 @@ from dependencies import get_admin_actual
 from models import Usuario, Cita, Empleado
 from services import validar_disponibilidad
 from templating import render_admin, flash
+from gcal import gcal_habilitado, sincronizar_cita
 
 router = APIRouter(prefix="/admin/citas", dependencies=[Depends(get_admin_actual)])
 
@@ -20,12 +21,22 @@ def _obtener(db: Session, cita_id: int) -> Cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada.")
     return cita
 
+def _avisar_si_fallo(request: Request, resultado: str):
+    if resultado == "error":
+        flash(
+            request,
+            "El cambio se guardó, pero no se pudo actualizar Google Calendar. "
+            "Usa el botón «Sincronizar» de esta cita para reintentar.",
+            "warn",
+        )
+
 
 def _render_detalle(request, admin, cita, errores=None, status_code=200):
     candidatos = [e for e in cita.servicio.empleados if e.activo]
     return render_admin(
         request, "admin/citas/detalle.html", admin, "citas", status_code=status_code,
         cita=cita, candidatos=candidatos, errores=errores or [],
+        gcal_on=gcal_habilitado(),
     )
 
 
@@ -88,6 +99,7 @@ def cambiar_estado(
 
     cita.estado = estado
     db.commit()
+    _avisar_si_fallo(request, sincronizar_cita(db, cita))
     flash(request, f"Cita marcada como '{ESTADOS_CITA[estado]}'.")
     return RedirectResponse(destino, status_code=303)
 
@@ -124,5 +136,19 @@ def reprogramar(
     cita.fecha_hora = nueva
     cita.empleado_id = empleado.id
     db.commit()
+    _avisar_si_fallo(request, sincronizar_cita(db, cita))
     flash(request, "Cita reprogramada.")
+    return RedirectResponse(f"/admin/citas/{cita.id}", status_code=303)
+
+@router.post("/{cita_id}/sincronizar")
+def sincronizar(cita_id: int, request: Request, db: Session = Depends(get_db)):
+    cita = _obtener(db, cita_id)
+    resultado = sincronizar_cita(db, cita)
+
+    if resultado == "ok":
+        flash(request, "Cita sincronizada con Google Calendar.")
+    elif resultado == "desactivado":
+        flash(request, "Google Calendar no está configurado.", "warn")
+    else:
+        flash(request, "No se pudo sincronizar. Revisa la terminal para ver el detalle.", "error")
     return RedirectResponse(f"/admin/citas/{cita.id}", status_code=303)

@@ -6,6 +6,7 @@ import google_auth_httplib2
 import httplib2
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from config import GOOGLE_CREDENTIALS_FILE, GOOGLE_CALENDAR_ID, TIMEZONE
 
@@ -64,15 +65,56 @@ def crear_evento(cita) -> str:
     return evento["id"]
 
 
-def registrar_cita(db, cita) -> bool:
-    """Intenta crear el evento. Nunca rompe la reserva: si falla, la cita queda sin google_event_id."""
-    if not gcal_habilitado():
-        return False
+
+
+def _no_encontrado(error) -> bool:
+    return isinstance(error, HttpError) and error.resp.status in (404, 410)
+
+
+def actualizar_evento(cita) -> str:
+    """Actualiza el evento. Si ya no existe en Google, lo vuelve a crear. Devuelve el id vigente."""
     try:
-        cita.google_event_id = crear_evento(cita)
+        _servicio().events().patch(
+            calendarId=GOOGLE_CALENDAR_ID,
+            eventId=cita.google_event_id,
+            body=construir_evento(cita),
+        ).execute()
+        return cita.google_event_id
+    except HttpError as e:
+        if _no_encontrado(e):
+            return crear_evento(cita)
+        raise
+
+
+def eliminar_evento(event_id: str) -> None:
+    try:
+        _servicio().events().delete(calendarId=GOOGLE_CALENDAR_ID, eventId=event_id).execute()
+    except HttpError as e:
+        if not _no_encontrado(e):   # si ya no existía, mejor: el resultado es el mismo
+            raise
+
+
+def sincronizar_cita(db, cita) -> str:
+    """Deja el calendario igual que la cita. Devuelve 'ok', 'desactivado' o 'error'.
+
+    Importante: quien la llame debe haber guardado (commit) sus cambios antes.
+    """
+    if not gcal_habilitado():
+        return "desactivado"
+
+    cita_id = cita.id
+    try:
+        if cita.estado == "cancelada":
+            if cita.google_event_id:
+                eliminar_evento(cita.google_event_id)
+                cita.google_event_id = None
+        elif cita.google_event_id:
+            cita.google_event_id = actualizar_evento(cita)
+        else:
+            cita.google_event_id = crear_evento(cita)
         db.commit()
-        return True
+        return "ok"
     except Exception:
         db.rollback()
-        logger.exception("No se pudo crear el evento de Google Calendar")
-        return False
+        logger.exception("No se pudo sincronizar la cita %s con Google Calendar", cita_id)
+        return "error"

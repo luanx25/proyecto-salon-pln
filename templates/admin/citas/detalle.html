@@ -18,6 +18,20 @@
     <tr><th>Origen</th><td>{{ cita.origen }}</td></tr>
     <tr><th>Mensaje original</th><td>{{ cita.mensaje_original or '—' }}</td></tr>
     <tr><th>Creada</th><td>{{ cita.creado_en|fecha }}</td></tr>
+    {% if gcal_on %}
+    <tr><th>Google Calendar</th><td>
+        {% if cita.google_event_id %}
+        ✔ Sincronizada
+        {% elif cita.estado == 'cancelada' %}
+        —
+        {% else %}
+        ⚠ Pendiente de sincronizar
+        <form class="inline" method="post" action="/admin/citas/{{ cita.id }}/sincronizar">
+            <button class="btn sec" type="submit">Sincronizar</button>
+        </form>
+        {% endif %}
+    </td></tr>
+    {% endif %}
 </table>
 
 <h2>Cambiar estado</h2>

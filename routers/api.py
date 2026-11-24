@@ -5,7 +5,7 @@ from database import get_db
 from models import Servicio, Cita, Empleado
 from schemas import MensajeEntrada
 from nlp import parse_mensaje
-from gcal import registrar_cita
+from gcal import sincronizar_cita
 from services import (
     validar_contacto,buscar_servicio,  asignar_empleado_disponible, crear_cita,listar_horarios_disponibles
 )
@@ -155,7 +155,7 @@ def procesar_mensaje_landing(payload: MensajeEntrada, db: Session = Depends(get_
         cliente_telefono=payload.cliente_telefono,
         mensaje_original=payload.mensaje
     )
-    registrar_cita(db, cita)
+    sincronizar_cita(db, cita)
 
     # Paso 8: mostrar resultado
     flujo.append("8. La interfaz muestra la confirmación.")
