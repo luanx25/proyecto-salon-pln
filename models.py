@@ -55,6 +55,7 @@ class Cita(Base):
     estado = Column(String, default="confirmada")
     origen = Column(String, default="landing")
     creado_en = Column(DateTime, default=datetime.now)
+    google_event_id = Column(String, nullable=True)
 
     servicio = relationship("Servicio", back_populates="citas")
     empleado = relationship("Empleado", back_populates="citas")

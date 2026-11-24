@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
+from migraciones import asegurar_columnas
 
 from config import SECRET_KEY
 from database import Base, engine
@@ -10,6 +11,7 @@ from dependencies import RedirigirALogin
 from fastapi.staticfiles import StaticFiles
 
 Base.metadata.create_all(bind=engine)
+asegurar_columnas()
 
 app = FastAPI(
     title="Salón de Belleza - Landing + PLN MVP",
@@ -19,9 +21,9 @@ app = FastAPI(
 app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET_KEY,
-    max_age=60 * 60 * 8,   # la sesión dura 8 horas
+    max_age=60 * 60 * 8,  # la sesión dura 8 horas
     same_site="lax",
-    https_only=False,      # cámbialo a True al desplegar con HTTPS
+    https_only=False,  # cámbialo a True al desplegar con HTTPS
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -35,11 +37,10 @@ app.include_router(admin_empleados.router)
 app.include_router(admin_citas.router)
 app.include_router(admin_sitio.router)
 
+
 @app.exception_handler(RedirigirALogin)
 async def redirigir_a_login(request, exc):
     return RedirectResponse("/admin/login", status_code=303)
-
-
 
 
 seed_datos()
