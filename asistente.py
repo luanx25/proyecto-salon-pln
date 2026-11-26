@@ -8,10 +8,9 @@ from gcal import sincronizar_cita
 from models import Servicio
 from nlp import parse_mensaje
 from services import (
-    asignar_empleado_disponible, buscar_servicio, crear_cita,
-    listar_horarios_disponibles, validar_contacto,
+    asignar_empleado_disponible, buscar_servicio, citas_futuras_cliente, crear_cita,
+    listar_horarios_disponibles, puede_reservar, validar_contacto,
 )
-
 DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
 AYUDA = (
@@ -70,11 +69,11 @@ def _cita_json(cita) -> dict:
     }
 
 
-def _preguntar(sesion, estado: dict, campo: str, texto: str) -> dict:
+def _preguntar(sesion, estado: dict, campo: str, texto: str, con_resumen: bool = True) -> dict:
     estado["esperando"] = campo
     dialogo.guardar(sesion, estado)
-    return _r(_entendido(estado) + texto, estado="pregunta", esperando=campo)
-
+    prefijo = _entendido(estado) if con_resumen else ""
+    return _r(prefijo + texto, estado="pregunta", esperando=campo)
 
 def _exigir_contacto(sesion, estado: dict, ctx):
     ok, motivo = validar_contacto(ctx.email, ctx.telefono)
@@ -116,6 +115,11 @@ def _reservar(db: Session, sesion, estado: dict, ctx) -> dict:
     if pedido:
         return pedido
 
+    ok, motivo = puede_reservar(db, ctx.email, ctx.telefono)
+    if not ok:
+        dialogo.limpiar(sesion)
+        return _r(motivo)
+
     fecha_hora = datetime.combine(estado["fecha"], estado["hora"])
     empleado, motivo = asignar_empleado_disponible(db, servicio, fecha_hora)
 
@@ -144,10 +148,140 @@ def _reservar(db: Session, sesion, estado: dict, ctx) -> dict:
     )
 
 
+def _lista_citas(citas: list) -> str:
+    return "; ".join(f"#{c.id} {c.servicio.nombre}, {_fmt(c.fecha_hora)}" for c in citas)
+
+
+def _elegir_cita(sesion, estado: dict, citas: list, accion: str, filtrar_por_fecha: bool = False):
+    """Devuelve (cita, None) si ya sabemos cuál, o (None, respuesta) si hay que contestar algo."""
+    if not citas:
+        dialogo.limpiar(sesion)
+        return None, _r("No encontré citas próximas con esos datos.")
+
+    if estado["cita_id"]:
+        cita = next((c for c in citas if c.id == estado["cita_id"]), None)
+        if cita:
+            return cita, None
+        estado["cita_id"] = None
+        return None, _preguntar(
+            sesion, estado, "cita",
+            f"No encontré esa cita entre las tuyas. Tus citas próximas: {_lista_citas(citas)}. "
+            f"¿Cuál quieres {accion}? Dime el número.",
+            con_resumen=False,
+        )
+
+    if filtrar_por_fecha and estado.get("fecha"):
+        del_dia = [c for c in citas if c.fecha_hora.date() == estado["fecha"]]
+        if del_dia:
+            citas = del_dia
+
+    if len(citas) == 1:
+        estado["cita_id"] = citas[0].id
+        return citas[0], None
+
+    return None, _preguntar(
+        sesion, estado, "cita",
+        f"Tienes varias citas: {_lista_citas(citas)}. ¿Cuál quieres {accion}? Dime el número.",
+        con_resumen=False,
+    )
+
+
+def _consultar(db: Session, sesion, estado: dict, ctx) -> dict:
+    pedido = _exigir_contacto(sesion, estado, ctx)
+    if pedido:
+        return pedido
+
+    citas = citas_futuras_cliente(db, ctx.email, ctx.telefono)
+    dialogo.limpiar(sesion)
+
+    if not citas:
+        return _r("No tienes citas próximas con esos datos.")
+    return _r(f"Tus próximas citas: {_lista_citas(citas)}.")
+
+
+def _cancelar(db: Session, sesion, estado: dict, ctx) -> dict:
+    pedido = _exigir_contacto(sesion, estado, ctx)
+    if pedido:
+        return pedido
+
+    citas = citas_futuras_cliente(db, ctx.email, ctx.telefono)
+    cita, respuesta = _elegir_cita(sesion, estado, citas, "cancelar", filtrar_por_fecha=True)
+    if respuesta:
+        return respuesta
+
+    if not (estado["esperando"] == "confirmar" and estado["afirmo"]):
+        return _preguntar(
+            sesion, estado, "confirmar",
+            f"¿Confirmas que quieres cancelar tu cita #{cita.id} de {cita.servicio.nombre} "
+            f"del {_fmt(cita.fecha_hora)}? Responde «sí» o «no».",
+            con_resumen=False,
+        )
+
+    cita.estado = "cancelada"
+    db.commit()
+    sincronizar_cita(db, cita)
+    dialogo.limpiar(sesion)
+
+    return _r(
+        f"Listo, cancelé tu cita #{cita.id} de {cita.servicio.nombre} del {_fmt(cita.fecha_hora)}.",
+        estado="completo",
+        cita=_cita_json(cita),
+    )
+
+
+def _reprogramar(db: Session, sesion, estado: dict, ctx) -> dict:
+    pedido = _exigir_contacto(sesion, estado, ctx)
+    if pedido:
+        return pedido
+
+    citas = citas_futuras_cliente(db, ctx.email, ctx.telefono)
+    cita, respuesta = _elegir_cita(sesion, estado, citas, "mover")
+    if respuesta:
+        return respuesta
+
+    if not estado["fecha"]:
+        return _preguntar(sesion, estado, "fecha", f"¿Para qué día quieres mover tu cita #{cita.id}?")
+    if not estado["hora"]:
+        return _preguntar(sesion, estado, "hora", "¿A qué hora?")
+
+    nueva = datetime.combine(estado["fecha"], estado["hora"])
+    empleado, motivo = asignar_empleado_disponible(
+        db, cita.servicio, nueva, excluir_cita_id=cita.id, preferido=cita.empleado
+    )
+
+    if not empleado:
+        libres = listar_horarios_disponibles(db, cita.servicio, estado["fecha"], excluir_cita_id=cita.id)
+        if libres:
+            estado["hora"] = None
+            return _preguntar(
+                sesion, estado, "hora",
+                f"{motivo} Ese día tengo libre: {', '.join(libres[:6])}. ¿Cuál prefieres?",
+            )
+        estado["fecha"] = None
+        estado["hora"] = None
+        return _preguntar(sesion, estado, "fecha", f"{motivo} Ese día ya no hay horarios. ¿Probamos otro día?")
+
+    cita.fecha_hora = nueva
+    cita.empleado_id = empleado.id
+    db.commit()
+    db.refresh(cita)
+    sincronizar_cita(db, cita)
+    dialogo.limpiar(sesion)
+
+    return _r(
+        f"Listo, moví tu cita #{cita.id} de {cita.servicio.nombre} al {_fmt(nueva)} con {empleado.nombre}.",
+        estado="completo",
+        cita=_cita_json(cita),
+        atendido_por=empleado.nombre,
+    )
+
+
 MANEJADORES = {
     "reservar": _reservar,
+    "cancelar": _cancelar,
+    "reprogramar": _reprogramar,
+    "consultar": _consultar,
 }
-
 
 # ---------- punto de entrada ----------
 

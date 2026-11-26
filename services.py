@@ -3,12 +3,14 @@ from datetime import datetime, timedelta, date, time
 from sqlalchemy.orm import Session
 from models import Servicio, Cita, Empleado
 from gcal import hay_bloqueo_externo
+from sqlalchemy import func
 
 HORA_APERTURA = 9
 HORA_CIERRE = 19
 
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+MAX_CITAS_FUTURAS = 3
 
 def validar_contacto(cliente_email: str, cliente_telefono: str):
     if not cliente_email:
@@ -127,29 +129,31 @@ def empleado_trabaja_en(empleado: Empleado, inicio: datetime, fin: datetime):
     return False
 
 
-def asignar_empleado_disponible(db: Session, servicio: Servicio, fecha_hora: datetime):
-    """Devuelve (empleado, mensaje). Si nadie puede, empleado es None."""
-    ok, mensaje = validar_horario_general(fecha_hora, servicio)
-    if not ok:
-        return None, mensaje
 
-    fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
+def citas_futuras_cliente(db: Session, email: str, telefono: str):
+    """Citas confirmadas y futuras de ese cliente. Exige que correo Y teléfono coincidan."""
+    tel = re.sub(r"\D", "", telefono or "")
+    return (
+        db.query(Cita)
+        .filter(
+            func.lower(Cita.cliente_email) == (email or "").strip().lower(),
+            Cita.cliente_telefono == tel,
+            Cita.estado == "confirmada",
+            Cita.fecha_hora >= datetime.now(),
+            )
+        .order_by(Cita.fecha_hora)
+        .all()
+    )
 
-    if hay_bloqueo_externo(fecha_hora, fin):
-        return None, "El salón no tiene disponibilidad en ese horario. Elige otro horario."
 
-    candidatos = [e for e in servicio.empleados if e.activo]
-    if not candidatos:
-        return None, f"No hay personal activo que realice '{servicio.nombre}'."
+def puede_reservar(db: Session, email: str, telefono: str):
+    if len(citas_futuras_cliente(db, email, telefono)) >= MAX_CITAS_FUTURAS:
+        return False, (
+            f"Ya tienes {MAX_CITAS_FUTURAS} citas próximas. "
+            "Cancela o reprograma una antes de agendar otra."
+        )
+    return True, ""
 
-    for empleado in candidatos:
-        if not empleado_trabaja_en(empleado, fecha_hora, fin):
-            continue
-        if hay_traslape(db, empleado, fecha_hora, fin):
-            continue
-        return empleado, "Horario disponible."
-
-    return None, "No hay personal disponible en ese horario. Elige otro horario."
 
 def crear_cita(
         db: Session,
@@ -180,14 +184,49 @@ def crear_cita(
 
     return cita
 
-def listar_horarios_disponibles(db: Session, servicio: Servicio, dia: date, paso_min: int = 30):
+def asignar_empleado_disponible(
+        db: Session, servicio: Servicio, fecha_hora: datetime,
+        excluir_cita_id: int | None = None, preferido: Empleado | None = None,
+):
+    """Devuelve (empleado, mensaje). Si nadie puede, empleado es None."""
+    ok, mensaje = validar_horario_general(fecha_hora, servicio)
+    if not ok:
+        return None, mensaje
+
+    fin = fecha_hora + timedelta(minutes=servicio.duracion_min)
+
+    if hay_bloqueo_externo(fecha_hora, fin):
+        return None, "El salón no tiene disponibilidad en ese horario. Elige otro horario."
+
+    candidatos = [e for e in servicio.empleados if e.activo]
+    if not candidatos:
+        return None, f"No hay personal activo que realice '{servicio.nombre}'."
+
+    if preferido in candidatos:                     # al reprogramar, primero intenta con la misma persona
+        candidatos.remove(preferido)
+        candidatos.insert(0, preferido)
+
+    for empleado in candidatos:
+        if not empleado_trabaja_en(empleado, fecha_hora, fin):
+            continue
+        if hay_traslape(db, empleado, fecha_hora, fin, excluir_cita_id):
+            continue
+        return empleado, "Horario disponible."
+
+    return None, "No hay personal disponible en ese horario. Elige otro horario."
+
+
+def listar_horarios_disponibles(
+        db: Session, servicio: Servicio, dia: date, paso_min: int = 30,
+        excluir_cita_id: int | None = None,
+):
     """Lista las horas de inicio ('HH:MM') en las que se puede agendar el servicio ese día."""
     horarios = []
     actual = datetime.combine(dia, time(HORA_APERTURA, 0))
     cierre = datetime.combine(dia, time(HORA_CIERRE, 0))
 
     while actual + timedelta(minutes=servicio.duracion_min) <= cierre:
-        empleado, _ = asignar_empleado_disponible(db, servicio, actual)
+        empleado, _ = asignar_empleado_disponible(db, servicio, actual, excluir_cita_id)
         if empleado:
             horarios.append(actual.strftime("%H:%M"))
         actual += timedelta(minutes=paso_min)

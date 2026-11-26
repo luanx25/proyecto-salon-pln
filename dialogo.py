@@ -75,7 +75,9 @@ def fusionar(pendiente, analisis: dict) -> dict:
     texto = analisis["texto_normalizado"]
     if estado["esperando"] == "hora" and estado["hora"] is None:
         estado["hora"] = detectar_hora_suelta(texto)
-    if estado["esperando"] == "cita" and estado["cita_id"] is None and re.fullmatch(r"\d{1,6}", texto):
-        estado["cita_id"] = int(texto)
+    if estado["esperando"] == "cita" and estado["cita_id"] is None:
+        m = re.fullmatch(r"(?:la |numero |num )?(\d{1,6})", texto)
+        if m:
+            estado["cita_id"] = int(m.group(1))
 
     return estado
